@@ -1,0 +1,59 @@
+# Development Log
+
+## 2026-07-09 Evening
+
+### Project Direction
+
+- Working name: Market Opportunity Engine.
+- Purpose: research-only scanner for Bollinger Band + RSI trading setups.
+- Strategy focus: identify potential bounce/pullback watchlist conditions using RSI, Bollinger Bands, divergence, RVOL, VWAP, liquidity, and market context.
+- Important constraint: the app must avoid presenting alerts as financial advice, buy/sell recommendations, or guaranteed outcomes.
+
+### Current App State
+
+- React + TypeScript + Vite app.
+- Main UI lives in `src/App.tsx`.
+- Styling lives in `src/styles.css`.
+- Indicator calculations live in `src/lib/indicators.ts`.
+- Scoring logic lives in `src/lib/scoring.ts`.
+- Market data provider abstraction lives in `src/lib/marketProviders.ts`.
+- Mock data lives in `src/lib/mockData.ts`.
+
+### Completed Features
+
+- Deterministic mock market stream for early development and repeatable testing.
+- Bollinger Bands, RSI, VWAP, ATR, relative volume, band width, and squeeze checks.
+- Bullish and bearish divergence detection over recent swing points.
+- Opportunity score from 0 to 100.
+- Top Opportunities cards.
+- Ranked Scanner table.
+- Ticker detail panel with price, RSI, volume, and risk-reference charts.
+- Alert Feed and Market Context panels.
+- Filter controls with staged changes.
+- Prominent `Search Again` / `Apply Filters & Search` buttons.
+- Tooltip/explainer balloons on financial terms and scanner controls.
+- Yahoo Chart no-key prototype provider through Vite dev proxy.
+- Finnhub and Alpha Vantage provider hooks for API-key testing.
+
+### UI Fixes
+
+- Fixed Ranked Scanner tooltip layering issue where header explainer bubbles appeared behind the Top Opportunities panel.
+- Table header tooltips now open downward.
+- Scanner panel raises stacking layer while tooltip is hovered/focused.
+
+### Verification
+
+- `npm test` passed.
+- `npm run build` passed.
+- `npm audit` returned 0 vulnerabilities.
+- Browser check confirmed the Ranked Scanner tooltip opens downward and clears the Top Opportunities panel.
+
+### Git / GitHub
+
+- Local git repo initialized on `main`.
+- Initial commit created:
+  - `9f77055 Initial market opportunity engine`
+- GitHub remote configured:
+  - `git@github.com:jfderbes-ship-it/market-opportunity-engine.git`
+- Push is blocked until an empty GitHub repo exists at that remote.
+

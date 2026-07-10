@@ -36,3 +36,9 @@ npm run dev
 npm run build
 npm test
 ```
+
+## Project Notes
+
+- [Development log](docs/DEV_LOG.md)
+- [Restart handoff](docs/HANDOFF.md)
+- [Decision notes](docs/DECISIONS.md)
