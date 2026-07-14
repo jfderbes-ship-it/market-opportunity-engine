@@ -32,8 +32,7 @@
 - Filter controls with staged changes.
 - Prominent `Search Again` / `Apply Filters & Search` buttons.
 - Tooltip/explainer balloons on financial terms and scanner controls.
-- Yahoo Chart no-key prototype provider through Vite dev proxy.
-- Finnhub and Alpha Vantage provider hooks for API-key testing.
+- Server-side provider boundary for external data.
 
 ### UI Fixes
 
@@ -61,18 +60,22 @@
 - Mock candles remain deterministic for repeatable testing, but the UI now labels their table, alert-feed, timeline, and coverage times as `Simulated`.
 - Live and public-provider rows continue to show their actual newest-candle timestamps in Eastern time.
 
+### July 14, 2026: Resume Notes Refreshed
+
+- Replaced outdated repository/bootstrap instructions with a current restart handoff, data-trust rules, architecture map, verification checklist, and sequenced next-work list.
+- Confirmed `main` is pushed to `jfderbes-ship-it/market-opportunity-engine` through commit `eaec4f2`.
+
 ### Verification
 
 - `npm test` passed.
 - `npm run build` passed.
 - `npm audit` returned 0 vulnerabilities.
 - Browser check confirmed the Ranked Scanner tooltip opens downward and clears the Top Opportunities panel.
+- Browser check confirmed Mock rows and scan coverage present `Simulated`, while the top bar retains the actual local scan-refresh time.
 
 ### Git / GitHub
 
 - Local git repo initialized on `main`.
-- Initial commit created:
-  - `9f77055 Initial market opportunity engine`
 - GitHub remote configured:
   - `git@github.com:jfderbes-ship-it/market-opportunity-engine.git`
-- Push is blocked until an empty GitHub repo exists at that remote.
+- Current `main` branch is pushed to GitHub.

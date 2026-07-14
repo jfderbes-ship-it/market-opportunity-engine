@@ -25,13 +25,7 @@ The first strategy remains focused on Bollinger Band + RSI setups:
 
 Mock data stays as the default because it makes development deterministic and avoids API limits while the interface and scoring logic are still changing.
 
-External data support is provider-based:
-
-- Yahoo Chart: useful for near-real-time prototype testing, but unofficial.
-- Finnhub: API-key path for candle data.
-- Alpha Vantage: API-key path with free-tier limitations.
-
-Production should use a backend proxy for provider calls and key protection.
+External data support is provider-based. The active adapters are Public Yahoo Chart for explicitly experimental no-key testing and Alpaca Delayed SIP for a more dependable opt-in delayed path. Future providers should be added server-side through the same normalized provider contract.
 
 ## UX Choices
 
@@ -45,4 +39,4 @@ Production should use a backend proxy for provider calls and key protection.
 - Keep indicator math separate from UI.
 - Keep provider normalization separate from scoring.
 - Use deterministic mock data for stable tests and UI demos.
-- Avoid adding backend/server complexity until provider needs justify it.
+- Keep the current lightweight local server boundary until deployment requirements justify a normal server runtime.
