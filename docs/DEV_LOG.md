@@ -70,6 +70,7 @@
 - Added a locally saved 50-symbol trial watchlist with add/remove controls and a clear fixed-demo distinction for Mock mode.
 - Public scans now perform price eligibility before daily-volume analysis and report requested, price-eligible, completed, and unavailable counts.
 - Added short-lived server-side bar caching to avoid unnecessary repeat public-provider requests; no request-hiding or source-control bypass techniques are used.
+- Corrected Alpaca historical-bar requests to use the documented `sip` feed with a request end time at least 15 minutes behind the current time, preserving the intended delayed-SIP behavior for a non-subscribed account.
 
 ### Verification
 

@@ -17,6 +17,7 @@ The first strategy remains focused on Bollinger Band + RSI setups:
 ### July 14, 2026: Free Data Priority
 
 - The first real-data route uses Alpaca delayed SIP through a local server boundary.
+- The Alpaca historical-bars adapter requests the `sip` feed with an end time at least 15 minutes old, matching Alpaca's documented delayed-access behavior for non-subscribed accounts.
 - We prefer clearly labeled 15-minute delayed full-market data over partial real-time data for an indicator set that depends on volume and VWAP.
 - Yahoo Finance scraping and browser-direct provider keys are removed from the active product path.
 - The initial real-data scope is a built-in personal watchlist. It is not presented as a complete-market scan.

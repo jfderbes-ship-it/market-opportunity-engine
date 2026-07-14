@@ -236,14 +236,15 @@ function cacheDurationMilliseconds(timeframe: Timeframe): number {
 }
 
 async function fetchAlpacaBars(symbol: string, timeframe: Timeframe, env: Record<string, string>): Promise<Candle[]> {
-  const end = new Date();
+  // Alpaca permits non-subscribed SIP historical-bar access when the request ends at least 15 minutes in the past.
+  const end = new Date(Date.now() - 15 * 60 * 1000);
   const start = new Date(end.getTime() - lookbackMilliseconds(timeframe));
   const url = new URL(`https://data.alpaca.markets/v2/stocks/${encodeURIComponent(symbol)}/bars`);
   url.searchParams.set("timeframe", alpacaTimeframe(timeframe));
   url.searchParams.set("start", start.toISOString());
   url.searchParams.set("end", end.toISOString());
   url.searchParams.set("adjustment", "raw");
-  url.searchParams.set("feed", "delayed_sip");
+  url.searchParams.set("feed", "sip");
   url.searchParams.set("limit", "1000");
 
   const response = await fetch(url, {
