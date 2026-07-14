@@ -7,7 +7,7 @@ Read this file first when resuming work.
 - Local project: `C:\dev_bollinger_band_invest_tool`
 - GitHub repository: `git@github.com:jfderbes-ship-it/market-opportunity-engine.git`
 - Branch: `main`
-- Last verified commit: `eaec4f2 Clarify simulated market timestamps`
+- Last verified commit: run `git log -1 --oneline` from the project directory.
 - Current development session is available at `http://127.0.0.1:5174/`. Vite normally starts at `5173`; it uses the next free port when that port is occupied.
 - Product status: local personal research prototype. It is not a deployed service, brokerage, trade executor, or investment advisor.
 
@@ -19,7 +19,7 @@ Read this file first when resuming work.
 - Deterministic Mock Market Stream for repeatable learning, UI work, and tests.
 - Public Yahoo Chart (Experimental) no-key, server-side data path for personal near-real-time experimentation.
 - A saved, browser-local 50-symbol trial watchlist with explicit add/remove controls. Public providers check price eligibility before daily-volume analysis.
-- Optional Alpaca Delayed SIP server-side provider, kept unconfigured until local paper API credentials are intentionally added.
+- Alpaca Delayed SIP server-side provider, configured locally with credentials kept in ignored `.env.local`; the browser never receives them.
 - Data coverage, unavailable-symbol, metadata, freshness, and newest-candle status in the interface.
 - Mock rows and events explicitly show `Simulated`; they never present fabricated timestamps as live market updates.
 
@@ -28,7 +28,7 @@ Read this file first when resuming work.
 1. Mock data is for learning and repeatable development only.
 2. Public Yahoo Chart is unofficial and variable. Check the displayed newest-candle time every scan; disregard stale or inconsistent scans.
 3. Respect public-source limits: use the built-in low concurrency and short-lived cache, do not attempt to hide requests or bypass a source's restrictions.
-4. Alpaca Delayed SIP is the preferred next verified data route, but it remains 15 minutes delayed and needs locally stored credentials.
+4. Alpaca Delayed SIP is the preferred verified data route. It remains 15 minutes delayed and uses locally stored credentials.
 5. The current scan covers a saved personal watchlist, not the entire US market.
 6. Earnings dates, live float, and bid-ask spread are unavailable until a verified provider is connected. Do not invent substitute values or imply otherwise.
 7. Keep credentials out of Git and never use `VITE_` prefixes for them; Vite exposes those values to the browser.
@@ -69,8 +69,9 @@ For UI changes, check the browser at the active local URL. Verify the target sta
 1. Add a persisted personal watchlist editor with symbol validation and a clear scan-universe count.
 2. Add provider-normalization fixtures and tests for bad responses, stale timestamps, partial coverage, and empty scans.
 3. Improve relative volume from a local 20-candle comparison to a historical time-of-day baseline, while keeping its method visible in the UI.
-4. Add optional local Alpaca paper credentials only when the user is ready; verify one delayed scan before treating it as usable.
-5. Consider non-execution alert persistence only after the data quality and scanner-universe behavior are stable.
+4. Build a dated daily candidate inbox from Alpaca most-active and mover screeners, with explicit `Pin` and `Dismiss` actions before altering the saved watchlist.
+5. Expand the visible saved-watchlist limit from 50 to 70, then 100, only after the daily candidate workflow and batch error behavior are stable.
+6. Consider non-execution alert persistence only after the data quality and scanner-universe behavior are stable.
 
 ## Boundaries For Future Changes
 

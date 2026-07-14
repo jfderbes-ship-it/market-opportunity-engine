@@ -21,6 +21,7 @@ The first strategy remains focused on Bollinger Band + RSI setups:
 - We prefer clearly labeled 15-minute delayed full-market data over partial real-time data for an indicator set that depends on volume and VWAP.
 - Yahoo Finance scraping and browser-direct provider keys are removed from the active product path.
 - The initial real-data scope is a built-in personal watchlist. It is not presented as a complete-market scan.
+- Alpaca scans use its multi-symbol bars endpoint in 25-symbol batches. The browser-visible watchlist stays capped at 50 until batch behavior, error handling, and candidate discovery are further validated.
 - Provider credentials stay server-side. Future paid providers should implement the same provider contract rather than adding browser-side API calls.
 - A clearly labeled Public Yahoo Chart experimental adapter is permitted for personal learning and no-key testing. It must remain server-side, display timing as variable, and never be described as official or consolidated real-time data.
 - The public adapter must be respectful: low concurrency, short-lived caching, visible coverage/errors, and no identity rotation, proxy evasion, or scraping workarounds.

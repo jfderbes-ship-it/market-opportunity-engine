@@ -22,11 +22,13 @@ interface ServerProvider {
   isConfigured(env: Record<string, string>): boolean;
   configurationError: string;
   fetchBars(symbol: string, timeframe: Timeframe, env: Record<string, string>): Promise<Candle[]>;
+  fetchBarsBatch?: (symbols: string[], timeframe: Timeframe, env: Record<string, string>) => Promise<Map<string, Candle[]>>;
 }
 
 const supportedTimeframes = new Set<Timeframe>(["1m", "5m", "15m", "1h", "1d"]);
 const contextSymbols = new Set(["SPY", "QQQ", "IWM"]);
 const barCache = new Map<string, { expiresAt: number; candles: Candle[] }>();
+const alpacaBatchSize = 25;
 
 const providers: Record<ServerProviderId, ServerProvider> = {
   "alpaca-delayed-sip": {
@@ -37,7 +39,8 @@ const providers: Record<ServerProviderId, ServerProvider> = {
     sourceUrl: "https://docs.alpaca.markets/us/docs/about-market-data-api",
     isConfigured: (env) => Boolean(env.ALPACA_API_KEY && env.ALPACA_API_SECRET),
     configurationError: "Alpaca is not configured. Add ALPACA_API_KEY and ALPACA_API_SECRET to .env.local, then restart npm run dev.",
-    fetchBars: fetchAlpacaBars
+    fetchBars: fetchAlpacaBars,
+    fetchBarsBatch: fetchAlpacaBarsBatch
   },
   "yahoo-public": {
     id: "yahoo-public",
@@ -125,16 +128,25 @@ async function buildProviderSnapshot(
     .filter((symbol) => !contextSymbols.has(symbol))
     .map((symbol) => referenceMetadata.get(symbol) ?? createPersonalTickerMeta(symbol));
   const context = await buildProviderContext(provider, timeframe, env);
-  const intradayResults = await allSettledWithConcurrency(watchlist, 3, (meta) => fetchCachedBars(provider, meta.symbol, timeframe, env));
+  const intradayResults = await fetchCachedBarsForSymbols(provider, watchlist.map((meta) => meta.symbol), timeframe, env);
   const unavailableSymbols = intradayResults.flatMap((result, index) => result.status === "rejected" ? [watchlist[index].symbol] : []);
   const priceEligible = intradayResults.flatMap((result, index) => {
-    const latest = result.status === "fulfilled" ? result.value.at(-1) : null;
+    if (result.status !== "fulfilled") {
+      return [];
+    }
+    const latest = result.value.at(-1);
     return latest && latest.close >= priceMin && latest.close <= priceMax ? [{ meta: watchlist[index], candles: result.value }] : [];
   });
-  const evaluatedResults = await allSettledWithConcurrency(priceEligible, 3, async ({ meta, candles }) => {
-    const dailyCandles = await fetchCachedBars(provider, meta.symbol, "1d", env);
-    return evaluateTicker(withLiveMetadata(meta, dailyCandles), candles, context, timeframe);
-  });
+  const dailyResults = await fetchCachedBarsForSymbols(provider, priceEligible.map(({ meta }) => meta.symbol), "1d", env);
+  const evaluatedResults = await Promise.allSettled(
+    priceEligible.map(async ({ meta, candles }, index) => {
+      const dailyResult = dailyResults[index];
+      if (dailyResult.status === "rejected") {
+        throw dailyResult.reason;
+      }
+      return evaluateTicker(withLiveMetadata(meta, dailyResult.value), candles, context, timeframe);
+    })
+  );
   unavailableSymbols.push(...evaluatedResults.flatMap((result, index) => result.status === "rejected" ? [priceEligible[index].meta.symbol] : []));
   const opportunities = evaluatedResults
     .flatMap((result) => (result.status === "fulfilled" ? [result.value] : []))
@@ -183,8 +195,13 @@ function createPersonalTickerMeta(symbol: string): TickerMeta {
 async function buildProviderContext(provider: ServerProvider, timeframe: Timeframe, env: Record<string, string>): Promise<MarketContext[]> {
   const symbols = ["SPY", "QQQ", "IWM"];
   const labels: Record<string, string> = { SPY: "Large-cap", QQQ: "Growth", IWM: "Small-cap" };
-  const results = await allSettledWithConcurrency(symbols, 3, async (symbol) => {
-    const candles = await fetchCachedBars(provider, symbol, timeframe, env);
+  const candleResults = await fetchCachedBarsForSymbols(provider, symbols, timeframe, env);
+  const results = await Promise.allSettled(symbols.map(async (symbol, index) => {
+    const candleResult = candleResults[index];
+    if (candleResult.status === "rejected") {
+      throw candleResult.reason;
+    }
+    const candles = candleResult.value;
     const first = candles[0];
     const latest = candles.at(-1);
     if (!first || !latest) {
@@ -200,27 +217,70 @@ async function buildProviderContext(provider: ServerProvider, timeframe: Timefra
       rsi,
       note: `${labels[symbol]} context from ${provider.label} candles.`
     };
-  });
+  }));
 
   return results.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
 }
 
-async function fetchCachedBars(
+async function fetchCachedBarsForSymbols(
   provider: ServerProvider,
-  symbol: string,
+  symbols: string[],
   timeframe: Timeframe,
   env: Record<string, string>
-): Promise<Candle[]> {
-  const cacheKey = `${provider.id}:${symbol}:${timeframe}`;
+): Promise<PromiseSettledResult<Candle[]>[]> {
+  const results: PromiseSettledResult<Candle[]>[] = new Array(symbols.length);
+  const cacheMisses: Array<{ index: number; symbol: string }> = [];
   const now = Date.now();
-  const cached = barCache.get(cacheKey);
-  if (cached && cached.expiresAt > now) {
-    return cached.candles;
+
+  symbols.forEach((symbol, index) => {
+    const cached = barCache.get(`${provider.id}:${symbol}:${timeframe}`);
+    if (cached && cached.expiresAt > now) {
+      results[index] = { status: "fulfilled", value: cached.candles };
+    } else {
+      cacheMisses.push({ index, symbol });
+    }
+  });
+
+  if (cacheMisses.length === 0) {
+    return results;
   }
 
-  const candles = await provider.fetchBars(symbol, timeframe, env);
-  barCache.set(cacheKey, { candles, expiresAt: now + cacheDurationMilliseconds(timeframe) });
-  return candles;
+  if (!provider.fetchBarsBatch) {
+    const fetched = await allSettledWithConcurrency(cacheMisses, 3, ({ symbol }) => provider.fetchBars(symbol, timeframe, env));
+    fetched.forEach((result, index) => {
+      const cacheMiss = cacheMisses[index];
+      if (result.status === "fulfilled") {
+        barCache.set(`${provider.id}:${cacheMiss.symbol}:${timeframe}`, {
+          candles: result.value,
+          expiresAt: now + cacheDurationMilliseconds(timeframe)
+        });
+      }
+      results[cacheMiss.index] = result;
+    });
+    return results;
+  }
+
+  try {
+    const fetched = await provider.fetchBarsBatch(cacheMisses.map(({ symbol }) => symbol), timeframe, env);
+    cacheMisses.forEach(({ index, symbol }) => {
+      const candles = fetched.get(symbol);
+      if (!candles) {
+        results[index] = { status: "rejected", reason: new Error(`${provider.label} returned no candles for ${symbol}.`) };
+        return;
+      }
+      barCache.set(`${provider.id}:${symbol}:${timeframe}`, {
+        candles,
+        expiresAt: now + cacheDurationMilliseconds(timeframe)
+      });
+      results[index] = { status: "fulfilled", value: candles };
+    });
+  } catch (reason) {
+    cacheMisses.forEach(({ index }) => {
+      results[index] = { status: "rejected", reason };
+    });
+  }
+
+  return results;
 }
 
 function cacheDurationMilliseconds(timeframe: Timeframe): number {
@@ -236,34 +296,67 @@ function cacheDurationMilliseconds(timeframe: Timeframe): number {
 }
 
 async function fetchAlpacaBars(symbol: string, timeframe: Timeframe, env: Record<string, string>): Promise<Candle[]> {
+  const candles = (await fetchAlpacaBarsBatch([symbol], timeframe, env)).get(symbol);
+  if (!candles) {
+    throw new Error(`Alpaca returned no candles for ${symbol}.`);
+  }
+  return candles;
+}
+
+async function fetchAlpacaBarsBatch(symbols: string[], timeframe: Timeframe, env: Record<string, string>): Promise<Map<string, Candle[]>> {
   // Alpaca permits non-subscribed SIP historical-bar access when the request ends at least 15 minutes in the past.
   const end = new Date(Date.now() - 15 * 60 * 1000);
   const start = new Date(end.getTime() - lookbackMilliseconds(timeframe));
-  const url = new URL(`https://data.alpaca.markets/v2/stocks/${encodeURIComponent(symbol)}/bars`);
-  url.searchParams.set("timeframe", alpacaTimeframe(timeframe));
-  url.searchParams.set("start", start.toISOString());
-  url.searchParams.set("end", end.toISOString());
-  url.searchParams.set("adjustment", "raw");
-  url.searchParams.set("feed", "sip");
-  url.searchParams.set("limit", "1000");
+  const candlesBySymbol = new Map<string, Candle[]>();
 
-  const response = await fetch(url, {
-    headers: {
-      "APCA-API-KEY-ID": env.ALPACA_API_KEY,
-      "APCA-API-SECRET-KEY": env.ALPACA_API_SECRET
+  for (const batch of chunkSymbols(symbols, alpacaBatchSize)) {
+    const url = new URL("https://data.alpaca.markets/v2/stocks/bars");
+    url.searchParams.set("symbols", batch.join(","));
+    url.searchParams.set("timeframe", alpacaTimeframe(timeframe));
+    url.searchParams.set("start", start.toISOString());
+    url.searchParams.set("end", end.toISOString());
+    url.searchParams.set("adjustment", "raw");
+    url.searchParams.set("feed", "sip");
+    url.searchParams.set("limit", "10000");
+
+    const response = await fetch(url, {
+      headers: {
+        "APCA-API-KEY-ID": env.ALPACA_API_KEY,
+        "APCA-API-SECRET-KEY": env.ALPACA_API_SECRET
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Alpaca batch request failed for ${batch.join(", ")}: ${response.status}.`);
     }
-  });
-  if (!response.ok) {
-    throw new Error(`Alpaca request failed for ${symbol}: ${response.status}.`);
+
+    const payload = (await response.json()) as { bars?: Record<string, Array<{ t: string; o: number; h: number; l: number; c: number; v: number }>> };
+    batch.forEach((symbol) => {
+      const bars = payload.bars?.[symbol] ?? [];
+      try {
+        candlesBySymbol.set(
+          symbol,
+          validateCandles(
+            bars.map((bar) => ({ time: bar.t, open: bar.o, high: bar.h, low: bar.l, close: bar.c, volume: bar.v })),
+            symbol,
+            timeframe,
+            "Alpaca"
+          )
+        );
+      } catch {
+        // A missing or short symbol response is tracked as unavailable without discarding its batch peers.
+      }
+    });
   }
 
-  const payload = (await response.json()) as { bars?: Array<{ t: string; o: number; h: number; l: number; c: number; v: number }> };
-  return validateCandles(
-    (payload.bars ?? []).map((bar) => ({ time: bar.t, open: bar.o, high: bar.h, low: bar.l, close: bar.c, volume: bar.v })),
-    symbol,
-    timeframe,
-    "Alpaca"
-  );
+  return candlesBySymbol;
+}
+
+function chunkSymbols(symbols: string[], size: number): string[][] {
+  const chunks: string[][] = [];
+  for (let index = 0; index < symbols.length; index += size) {
+    chunks.push(symbols.slice(index, index + size));
+  }
+  return chunks;
 }
 
 async function fetchYahooBars(symbol: string, timeframe: Timeframe): Promise<Candle[]> {

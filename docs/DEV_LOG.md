@@ -72,6 +72,12 @@
 - Added short-lived server-side bar caching to avoid unnecessary repeat public-provider requests; no request-hiding or source-control bypass techniques are used.
 - Corrected Alpaca historical-bar requests to use the documented `sip` feed with a request end time at least 15 minutes behind the current time, preserving the intended delayed-SIP behavior for a non-subscribed account.
 
+### July 14, 2026: Alpaca Batch Scan Foundation
+
+- Replaced the Alpaca one-request-per-symbol path with the documented multi-symbol bars endpoint, using conservative 25-symbol batches and per-symbol cache entries.
+- Kept the visible personal-watchlist cap at 50 while the new path is validated; the batch implementation is the prerequisite for a later 70- or 100-symbol option.
+- Verified a complete 50-symbol five-minute and one-minute scan through the local Alpaca Delayed SIP adapter. Coverage remains explicit when an individual symbol returns insufficient candles.
+
 ### Verification
 
 - `npm test` passed.
@@ -79,6 +85,7 @@
 - `npm audit` returned 0 vulnerabilities.
 - Browser check confirmed the Ranked Scanner tooltip opens downward and clears the Top Opportunities panel.
 - Browser check confirmed Mock rows and scan coverage present `Simulated`, while the top bar retains the actual local scan-refresh time.
+- Browser check confirmed Alpaca Delayed SIP coverage and the newest delayed-candle timestamp render in the Data Feed panel after a 50-symbol scan.
 
 ### Git / GitHub
 
