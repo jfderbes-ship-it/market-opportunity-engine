@@ -153,17 +153,14 @@ h1 {
   opacity: 0.55;
 }
 
-.disclaimer {
+.research-note {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 18px;
-  padding: 12px 14px;
-  border: 1px solid rgba(242, 189, 75, 0.28);
-  border-radius: 8px;
-  background: rgba(242, 189, 75, 0.08);
-  color: #f1e0b4;
-  line-height: 1.45;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin: -8px 0 14px;
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 
 .dashboard-grid {
@@ -724,6 +721,21 @@ th .tooltip-bubble::after {
   color: var(--muted);
   text-align: center;
   white-space: normal;
+}
+
+.scanner-empty {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+}
+
+.scanner-empty strong {
+  color: var(--soft);
+}
+
+.scanner-empty span {
+  max-width: 540px;
+  line-height: 1.4;
 }
 
 input,

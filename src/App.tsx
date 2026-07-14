@@ -134,13 +134,12 @@ function App() {
     };
   }, [appliedFilters.priceMax, appliedFilters.priceMin, appliedFilters.timeframe, appliedWatchlist, provider, searchNonce]);
 
-  const filteredOpportunities = useMemo(() => {
+  const nonScoreFilteredOpportunities = useMemo(() => {
     if (!snapshot) {
       return [];
     }
 
     return snapshot.opportunities
-      .filter((opportunity) => opportunity.score >= appliedFilters.minScore)
       .filter((opportunity) => appliedFilters.side === "all" || opportunity.side === appliedFilters.side)
       .filter((opportunity) => (opportunity.relativeVolume ?? 0) >= appliedFilters.minRelativeVolume)
       .filter((opportunity) => opportunity.meta.avgVolume >= appliedFilters.minAverageVolume)
@@ -154,6 +153,11 @@ function App() {
       })
       .filter((opportunity) => !appliedFilters.hideLiquidityWarnings || opportunity.liquidityWarning === null);
   }, [appliedFilters, snapshot]);
+
+  const filteredOpportunities = useMemo(
+    () => nonScoreFilteredOpportunities.filter((opportunity) => opportunity.score >= appliedFilters.minScore),
+    [appliedFilters.minScore, nonScoreFilteredOpportunities]
+  );
 
   const visibleOpportunities = useMemo(
     () => filteredOpportunities.map((opportunity, index) => ({ ...opportunity, rank: index + 1 })),
@@ -169,6 +173,11 @@ function App() {
   }
 
   const isSimulated = snapshot.feedStatus.mode === "mock";
+  const showEvaluatedSymbols = () => {
+    const nextFilters = { ...appliedFilters, minScore: 0 };
+    setAppliedFilters(nextFilters);
+    setDraftFilters(nextFilters);
+  };
 
   return (
     <div className="app-shell">
@@ -189,13 +198,10 @@ function App() {
         </div>
       </header>
 
-      <section className="disclaimer">
-        <Info size={17} />
-        <span>
-          This tool is for research and education only. It does not provide financial advice, investment recommendations,
-          automatic trade execution, or guaranteed outcomes. Alerts are probabilistic watchlist events.
-        </span>
-      </section>
+      <div className="research-note">
+        <Info size={14} />
+        <span>Research only. Verify data before making financial decisions.</span>
+      </div>
 
       <main className="dashboard-grid">
         <section className="left-column">
@@ -204,7 +210,10 @@ function App() {
             opportunities={visibleOpportunities}
             selectedSymbol={selectedOpportunity?.symbol ?? null}
             isSimulated={isSimulated}
+            evaluatedCount={nonScoreFilteredOpportunities.length}
+            minimumScore={appliedFilters.minScore}
             onSelect={setSelectedSymbol}
+            onShowEvaluated={showEvaluatedSymbols}
           />
         </section>
 
@@ -475,12 +484,18 @@ function ScannerTable({
   opportunities,
   selectedSymbol,
   isSimulated,
-  onSelect
+  evaluatedCount,
+  minimumScore,
+  onSelect,
+  onShowEvaluated
 }: {
   opportunities: Opportunity[];
   selectedSymbol: string | null;
   isSimulated: boolean;
+  evaluatedCount: number;
+  minimumScore: number;
   onSelect: (symbol: string) => void;
+  onShowEvaluated: () => void;
 }) {
   return (
     <section className="panel table-panel">
@@ -509,7 +524,22 @@ function ScannerTable({
           <tbody>
             {opportunities.length === 0 && (
               <tr className="empty-table-row">
-                <td colSpan={11}>No symbols match the active filters. The scanner is intentionally not showing substitute rows.</td>
+                <td colSpan={11}>
+                  <div className="scanner-empty">
+                    <strong>{evaluatedCount > 0 ? `No evaluated symbols meet the score ${minimumScore}+ threshold.` : "No symbols match the active filters."}</strong>
+                    <span>
+                      {evaluatedCount > 0
+                        ? `${evaluatedCount} symbols passed the other active filters and can be shown without another data request.`
+                        : "Adjust the price, volume, setup, or liquidity filters, then run the scan again."}
+                    </span>
+                    {evaluatedCount > 0 && (
+                      <button className="secondary-action" type="button" onClick={onShowEvaluated}>
+                        <SlidersHorizontal size={16} />
+                        <span>Show {evaluatedCount} evaluated symbols</span>
+                      </button>
+                    )}
+                  </div>
+                </td>
               </tr>
             )}
             {opportunities.map((opportunity) => (
