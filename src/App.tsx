@@ -150,6 +150,8 @@ function App() {
     return <div className="loading">Loading scanner...</div>;
   }
 
+  const isSimulated = snapshot.feedStatus.mode === "mock";
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -183,6 +185,7 @@ function App() {
           <ScannerTable
             opportunities={visibleOpportunities}
             selectedSymbol={selectedOpportunity?.symbol ?? null}
+            isSimulated={isSimulated}
             onSelect={setSelectedSymbol}
           />
         </section>
@@ -205,12 +208,12 @@ function App() {
             onReset={() => setDraftFilters(appliedFilters)}
           />
           <MarketContextPanel context={snapshot.context} />
-          <AlertFeed opportunities={visibleOpportunities} />
+          <AlertFeed opportunities={visibleOpportunities} isSimulated={isSimulated} />
           <DataPlanPanel />
         </aside>
 
         <section className="detail-column">
-          {selectedOpportunity ? <TickerDetail opportunity={selectedOpportunity} /> : <NoSelectionPanel />}
+          {selectedOpportunity ? <TickerDetail opportunity={selectedOpportunity} isSimulated={isSimulated} /> : <NoSelectionPanel />}
         </section>
       </main>
     </div>
@@ -271,7 +274,7 @@ function ProviderPanel({
         </div>
         <div>
           <span>Newest candle</span>
-          <strong>{formatMarketTimestamp(feedStatus.coverage.latestCandleAt)}</strong>
+          <strong>{feedStatus.mode === "mock" ? "Simulated" : formatMarketTimestamp(feedStatus.coverage.latestCandleAt)}</strong>
         </div>
         <div>
           <span>Metadata</span>
@@ -346,10 +349,12 @@ function OpportunityCards({
 function ScannerTable({
   opportunities,
   selectedSymbol,
+  isSimulated,
   onSelect
 }: {
   opportunities: Opportunity[];
   selectedSymbol: string | null;
+  isSimulated: boolean;
   onSelect: (symbol: string) => void;
 }) {
   return (
@@ -373,7 +378,7 @@ function ScannerTable({
               <th><InlineHelp label="RVOL" help={TERM_HELP.rvol} /></th>
               <th><InlineHelp label="VWAP" help={TERM_HELP.vwap} /></th>
               <th><InlineHelp label="Liquidity" help={TERM_HELP.liquidity} /></th>
-              <th>Updated</th>
+              <th><InlineHelp label="Candle time" help="Time of the most recent candle used for this signal. Simulated data does not show a real market timestamp." /></th>
             </tr>
           </thead>
           <tbody>
@@ -407,7 +412,7 @@ function ScannerTable({
                 <td>{formatNumber(opportunity.relativeVolume, 2)}x</td>
                 <td>{opportunity.vwapStatus}</td>
                 <td>{opportunity.liquidityWarning ?? "Clear"}</td>
-                <td>{formatMarketTimestamp(opportunity.lastUpdated)}</td>
+                <td>{isSimulated ? "Simulated" : formatMarketTimestamp(opportunity.lastUpdated)}</td>
               </tr>
             ))}
           </tbody>
@@ -549,7 +554,7 @@ function MarketContextPanel({ context }: { context: MarketContext[] }) {
   );
 }
 
-function AlertFeed({ opportunities }: { opportunities: Opportunity[] }) {
+function AlertFeed({ opportunities, isSimulated }: { opportunities: Opportunity[]; isSimulated: boolean }) {
   const feed = opportunities
     .filter((opportunity) => opportunity.score >= 60)
     .slice(0, 8)
@@ -568,7 +573,7 @@ function AlertFeed({ opportunities }: { opportunities: Opportunity[] }) {
         {feed.length === 0 && <EmptyState title="No current watchlist events" detail="The active filters did not leave any qualifying signals." />}
         {feed.map((item) => (
           <div className="feed-row" key={`${item.symbol}-${item.label}`}>
-            <span>{formatMarketTimestamp(item.time)}</span>
+            <span>{isSimulated ? "Simulated" : formatMarketTimestamp(item.time)}</span>
             <strong>{item.symbol}</strong>
             <SignalTag side={item.side} label={item.label} />
             <ScoreBadge score={item.score} />
@@ -613,7 +618,7 @@ function DataPlanPanel() {
   );
 }
 
-function TickerDetail({ opportunity }: { opportunity: Opportunity }) {
+function TickerDetail({ opportunity, isSimulated }: { opportunity: Opportunity; isSimulated: boolean }) {
   return (
     <section className="panel detail-panel">
       <div className="detail-header">
@@ -673,7 +678,7 @@ function TickerDetail({ opportunity }: { opportunity: Opportunity }) {
 
         <section className="subpanel">
           <h3>Alert Timeline</h3>
-          <Timeline events={opportunity.timeline} />
+          <Timeline events={opportunity.timeline} isSimulated={isSimulated} />
         </section>
 
         <section className="subpanel">
@@ -826,12 +831,12 @@ function nullablePath(
     .join(" ");
 }
 
-function Timeline({ events }: { events: AlertEvent[] }) {
+function Timeline({ events, isSimulated }: { events: AlertEvent[]; isSimulated: boolean }) {
   return (
     <div className="timeline">
       {events.map((event, index) => (
         <div className={`timeline-row ${event.severity}`} key={`${event.time}-${event.label}-${index}`}>
-          <span>{formatMarketTimestamp(event.time)}</span>
+          <span>{isSimulated ? "Simulated" : formatMarketTimestamp(event.time)}</span>
           <p>{event.label}</p>
         </div>
       ))}

@@ -56,6 +56,11 @@
 - Verified the endpoint returns usable five-minute candles for all 12 starter-watchlist symbols plus market context without an API key.
 - Added a three-request concurrency cap, explicit variable-timing label, and Eastern-time newest-candle display.
 
+### July 14, 2026: Clear Simulated Timestamps
+
+- Mock candles remain deterministic for repeatable testing, but the UI now labels their table, alert-feed, timeline, and coverage times as `Simulated`.
+- Live and public-provider rows continue to show their actual newest-candle timestamps in Eastern time.
+
 ### Verification
 
 - `npm test` passed.
