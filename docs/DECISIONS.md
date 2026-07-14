@@ -14,6 +14,14 @@ The first strategy remains focused on Bollinger Band + RSI setups:
 
 ## Data Approach
 
+### July 14, 2026: Free Data Priority
+
+- The first real-data route uses Alpaca delayed SIP through a local server boundary.
+- We prefer clearly labeled 15-minute delayed full-market data over partial real-time data for an indicator set that depends on volume and VWAP.
+- Yahoo Finance scraping and browser-direct provider keys are removed from the active product path.
+- The initial real-data scope is a built-in personal watchlist. It is not presented as a complete-market scan.
+- Provider credentials stay server-side. Future paid providers should implement the same provider contract rather than adding browser-side API calls.
+
 Mock data stays as the default because it makes development deterministic and avoids API limits while the interface and scoring logic are still changing.
 
 External data support is provider-based:
@@ -37,4 +45,3 @@ Production should use a backend proxy for provider calls and key protection.
 - Keep provider normalization separate from scoring.
 - Use deterministic mock data for stable tests and UI demos.
 - Avoid adding backend/server complexity until provider needs justify it.
-

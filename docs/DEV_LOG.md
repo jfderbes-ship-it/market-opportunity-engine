@@ -41,6 +41,15 @@
 - Table header tooltips now open downward.
 - Scanner panel raises stacking layer while tooltip is hovered/focused.
 
+### July 14, 2026: Trust And Data Foundation
+
+- Removed the active browser-direct Yahoo, Finnhub, and Alpha Vantage paths.
+- Added local server-side Alpaca Delayed SIP scan adapter with non-browser credentials.
+- Added scan coverage and newest-candle status to the data feed panel.
+- Removed fallback rows when filters return no matches.
+- Added a session-aware VWAP reset and regression test.
+- Real data remains opt-in until local Alpaca paper API credentials are provided.
+
 ### Verification
 
 - `npm test` passed.
@@ -56,4 +65,3 @@
 - GitHub remote configured:
   - `git@github.com:jfderbes-ship-it/market-opportunity-engine.git`
 - Push is blocked until an empty GitHub repo exists at that remote.
-

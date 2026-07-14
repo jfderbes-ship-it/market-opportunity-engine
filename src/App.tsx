@@ -49,7 +49,7 @@ const TERM_HELP = {
   rsi: "RSI measures momentum. In this strategy, below 25 is oversold for possible bounce setups and above 75 is overbought for possible pullback setups.",
   bollinger: "Bollinger Bands show a moving average plus upper/lower volatility bands. A band touch means price is stretched versus recent volatility.",
   divergence: "Divergence compares price swings to RSI swings. Bullish divergence means price makes a lower low while RSI makes a higher low. Bearish divergence is the reverse.",
-  rvol: "Relative Volume compares current volume to recent average volume. Above 1.0x means volume is higher than normal for this data window.",
+  rvol: "Relative Volume currently compares a candle with the preceding 20 candles. It is a local-volume comparison, not yet a historical time-of-day volume baseline.",
   vwap: "VWAP is the volume-weighted average price. Reclaiming or rejecting VWAP can confirm that intraday control is shifting.",
   liquidity: "Liquidity warnings flag wide spreads, thin average volume, or low float. These can make alerts less reliable.",
   timeframe: "Timeframe controls the candle size used for indicators. Shorter timeframes react faster but are noisier.",
@@ -58,8 +58,8 @@ const TERM_HELP = {
   minRelativeVolume: "Minimum relative volume filters out quiet tickers. A value like 1.25 requires volume to be at least 25% above normal.",
   minAverageVolume: "Minimum average volume filters out thinly traded tickers that may have poor fills or unstable signals.",
   priceRange: "Price range filters tickers by current share price.",
-  earnings: "Nearby earnings can overwhelm technical signals, so this can exclude tickers with earnings soon.",
-  hideLiquidity: "Hide rows with liquidity warnings such as wide spread, thin volume, or low float."
+  earnings: "Nearby earnings can overwhelm technical signals. This filter is active in mock mode; live earnings dates will remain unavailable until a verified calendar source is connected.",
+  hideLiquidity: "Hide rows with liquidity warnings. Live bid-ask spread and float data will remain unavailable until a verified source is connected."
 };
 
 function App() {
@@ -137,21 +137,16 @@ function App() {
       .filter((opportunity) => !appliedFilters.hideLiquidityWarnings || opportunity.liquidityWarning === null);
   }, [appliedFilters, snapshot]);
 
-  const visibleOpportunities = useMemo(() => {
-    if (!snapshot) {
-      return [];
-    }
-
-    return filteredOpportunities.length > 0 ? filteredOpportunities : snapshot.opportunities.slice(0, 8);
-  }, [filteredOpportunities, snapshot]);
-  const usingFallbackRows = Boolean(snapshot && filteredOpportunities.length === 0);
+  const visibleOpportunities = useMemo(
+    () => filteredOpportunities.map((opportunity, index) => ({ ...opportunity, rank: index + 1 })),
+    [filteredOpportunities]
+  );
 
   const selectedOpportunity = useMemo(() => {
-    const all = snapshot?.opportunities ?? [];
-    return all.find((item) => item.symbol === selectedSymbol) ?? visibleOpportunities[0] ?? all[0];
-  }, [selectedSymbol, snapshot, visibleOpportunities]);
+    return visibleOpportunities.find((item) => item.symbol === selectedSymbol) ?? visibleOpportunities[0] ?? null;
+  }, [selectedSymbol, visibleOpportunities]);
 
-  if (!snapshot || !selectedOpportunity) {
+  if (!snapshot) {
     return <div className="loading">Loading scanner...</div>;
   }
 
@@ -184,12 +179,11 @@ function App() {
 
       <main className="dashboard-grid">
         <section className="left-column">
-          <OpportunityCards opportunities={visibleOpportunities.slice(0, 3)} onSelect={setSelectedSymbol} selectedSymbol={selectedOpportunity.symbol} />
+          <OpportunityCards opportunities={visibleOpportunities.slice(0, 3)} onSelect={setSelectedSymbol} selectedSymbol={selectedOpportunity?.symbol ?? null} />
           <ScannerTable
             opportunities={visibleOpportunities}
-            selectedSymbol={selectedOpportunity.symbol}
+            selectedSymbol={selectedOpportunity?.symbol ?? null}
             onSelect={setSelectedSymbol}
-            usingFallbackRows={usingFallbackRows}
           />
         </section>
 
@@ -216,7 +210,7 @@ function App() {
         </aside>
 
         <section className="detail-column">
-          <TickerDetail opportunity={selectedOpportunity} />
+          {selectedOpportunity ? <TickerDetail opportunity={selectedOpportunity} /> : <NoSelectionPanel />}
         </section>
       </main>
     </div>
@@ -246,26 +240,50 @@ function ProviderPanel({
   onChange: (providerId: ProviderId) => void;
 }) {
   const selectedProvider = marketDataProviders.find((provider) => provider.id === providerId) ?? marketDataProviders[0];
+  const configured =
+    selectedProvider.id === "alpaca-delayed-sip"
+      ? feedStatus.providerId === selectedProvider.id && feedStatus.configured
+      : selectedProvider.configured;
 
   return (
     <section className="panel provider-panel">
       <PanelHeading icon={<Database size={18} />} title="Data Feed" detail={isLoading ? "Loading..." : feedStatus.freshness} />
       <label>
-        <FieldLabel label="Provider" help="Choose where candle data comes from. Mock is simulated. Yahoo is no-key but unofficial. Finnhub and Alpha Vantage need API keys." />
+        <FieldLabel label="Provider" help="Mock is simulated. Alpaca uses delayed consolidated market data through the local server, so the browser never receives the API credentials." />
         <select value={providerId} onChange={(event) => onChange(event.target.value as ProviderId)}>
           {marketDataProviders.map((provider) => (
             <option key={provider.id} value={provider.id}>
               {provider.label}
-              {provider.configured ? "" : " - needs key"}
+              {provider.id === "alpaca-delayed-sip" ? " - server setup" : ""}
             </option>
           ))}
         </select>
       </label>
-      <div className={`provider-status ${selectedProvider.configured ? "configured" : "missing"}`}>
-        {selectedProvider.configured ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
-        <span>{selectedProvider.configured ? "Configured" : "API key not configured"}</span>
+      <div className={`provider-status ${configured ? "configured" : "missing"}`}>
+        {configured ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+        <span>{configured ? "Configured" : selectedProvider.id === "alpaca-delayed-sip" ? "Server credentials required" : "Configured"}</span>
       </div>
       <p>{selectedProvider.description}</p>
+      <div className="scan-coverage">
+        <div>
+          <span>Coverage</span>
+          <strong>{feedStatus.coverage.completedSymbols} of {feedStatus.coverage.requestedSymbols} watchlist symbols scanned</strong>
+        </div>
+        <div>
+          <span>Newest candle</span>
+          <strong>{feedStatus.coverage.latestCandleAt ?? "Not available"}</strong>
+        </div>
+        <div>
+          <span>Metadata</span>
+          <strong>{feedStatus.coverage.metadataStatus}</strong>
+        </div>
+      </div>
+      {feedStatus.coverage.unavailableSymbols.length > 0 && (
+        <div className="provider-error">
+          <AlertTriangle size={16} />
+          <span>Unavailable this scan: {feedStatus.coverage.unavailableSymbols.join(", ")}</span>
+        </div>
+      )}
       {selectedProvider.sourceUrl && (
         <a href={selectedProvider.sourceUrl} target="_blank" rel="noreferrer">
           Provider documentation
@@ -288,11 +306,14 @@ function OpportunityCards({
 }: {
   opportunities: Opportunity[];
   onSelect: (symbol: string) => void;
-  selectedSymbol: string;
+  selectedSymbol: string | null;
 }) {
   return (
     <section className="panel">
       <PanelHeading icon={<Zap size={18} />} title="Top Opportunities" detail="Ranked by attention priority" />
+      {opportunities.length === 0 ? (
+        <EmptyState title="No opportunities match the active filters" detail="Lower a filter threshold or change the setup side, then run the scan again." />
+      ) : (
       <div className="card-grid">
         {opportunities.map((opportunity) => (
           <button
@@ -317,6 +338,7 @@ function OpportunityCards({
           </button>
         ))}
       </div>
+      )}
     </section>
   );
 }
@@ -324,20 +346,18 @@ function OpportunityCards({
 function ScannerTable({
   opportunities,
   selectedSymbol,
-  onSelect,
-  usingFallbackRows
+  onSelect
 }: {
   opportunities: Opportunity[];
-  selectedSymbol: string;
+  selectedSymbol: string | null;
   onSelect: (symbol: string) => void;
-  usingFallbackRows: boolean;
 }) {
   return (
     <section className="panel table-panel">
       <PanelHeading
         icon={<ChartCandlestick size={18} />}
         title="Ranked Scanner"
-        detail={usingFallbackRows ? "No alerts match filters; showing top raw scores" : `${opportunities.length} symbols matching filters`}
+        detail={`${opportunities.length} symbols matching filters`}
       />
       <div className="table-wrap">
         <table>
@@ -357,6 +377,11 @@ function ScannerTable({
             </tr>
           </thead>
           <tbody>
+            {opportunities.length === 0 && (
+              <tr className="empty-table-row">
+                <td colSpan={11}>No symbols match the active filters. The scanner is intentionally not showing substitute rows.</td>
+              </tr>
+            )}
             {opportunities.map((opportunity) => (
               <tr
                 key={opportunity.symbol}
@@ -540,6 +565,7 @@ function AlertFeed({ opportunities }: { opportunities: Opportunity[] }) {
     <section className="panel">
       <PanelHeading icon={<Bell size={18} />} title="Alert Feed" detail="Latest watchlist events" />
       <div className="feed-list">
+        {feed.length === 0 && <EmptyState title="No current watchlist events" detail="The active filters did not leave any qualifying signals." />}
         {feed.map((item) => (
           <div className="feed-row" key={`${item.symbol}-${item.label}`}>
             <span>{item.time}</span>
@@ -548,6 +574,27 @@ function AlertFeed({ opportunities }: { opportunities: Opportunity[] }) {
             <ScoreBadge score={item.score} />
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function EmptyState({ title, detail }: { title: string; detail: string }) {
+  return (
+    <div className="empty-state">
+      <strong>{title}</strong>
+      <span>{detail}</span>
+    </div>
+  );
+}
+
+function NoSelectionPanel() {
+  return (
+    <section className="panel empty-detail">
+      <ChartCandlestick size={22} />
+      <div>
+        <h2>No ticker selected</h2>
+        <p>Run a scan with filters that return at least one symbol to inspect its supporting data and reference zones.</p>
       </div>
     </section>
   );

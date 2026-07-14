@@ -331,7 +331,7 @@ function getLiquidityWarning(meta: TickerMeta): string | null {
     return "Thin volume";
   }
 
-  if (meta.floatShares < 25000000) {
+  if (meta.floatShares > 0 && meta.floatShares < 25000000) {
     return "Low float";
   }
 

@@ -229,7 +229,14 @@ export function buildMockSnapshot(timeframe: Timeframe = "5m"): MarketSnapshot {
       mode: "mock",
       freshness: "Simulated",
       configured: true,
-      message: "Deterministic simulated candles for strategy, UI, and scoring development."
+      message: "Deterministic simulated candles for strategy, UI, and scoring development.",
+      coverage: {
+        requestedSymbols: opportunities.length,
+        completedSymbols: opportunities.length,
+        unavailableSymbols: [],
+        latestCandleAt: opportunities[0]?.lastUpdated ?? null,
+        metadataStatus: "simulated"
+      }
     }
   };
 }

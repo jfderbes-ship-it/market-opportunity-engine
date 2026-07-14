@@ -100,14 +100,39 @@ function toRsiValue(averageGain: number, averageLoss: number): number {
 export function calculateVWAP(candles: Candle[]): Array<number | null> {
   let cumulativePriceVolume = 0;
   let cumulativeVolume = 0;
+  let sessionKey: string | null = null;
 
   return candles.map((candle) => {
+    const nextSessionKey = getMarketSessionKey(candle.time);
+    if (sessionKey !== nextSessionKey) {
+      cumulativePriceVolume = 0;
+      cumulativeVolume = 0;
+      sessionKey = nextSessionKey;
+    }
+
     const typicalPrice = (candle.high + candle.low + candle.close) / 3;
     cumulativePriceVolume += typicalPrice * candle.volume;
     cumulativeVolume += candle.volume;
 
     return cumulativeVolume === 0 ? null : cumulativePriceVolume / cumulativeVolume;
   });
+}
+
+function getMarketSessionKey(time: string): string {
+  const date = new Date(time);
+  if (Number.isNaN(date.getTime())) {
+    return "single-session";
+  }
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  const valueFor = (type: string) => parts.find((part) => part.type === type)?.value ?? "00";
+
+  return `${valueFor("year")}-${valueFor("month")}-${valueFor("day")}`;
 }
 
 export function calculateATR(candles: Candle[], period = 14): Array<number | null> {

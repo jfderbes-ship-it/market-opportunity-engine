@@ -579,6 +579,69 @@ th .tooltip-bubble::after {
   background: rgba(242, 189, 75, 0.08);
 }
 
+.scan-coverage {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.scan-coverage div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.scan-coverage span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.scan-coverage strong {
+  color: var(--soft);
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.empty-state {
+  display: grid;
+  gap: 5px;
+  min-height: 92px;
+  align-content: center;
+  padding: 13px;
+  border: 1px dashed rgba(142, 154, 150, 0.42);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.empty-state strong {
+  color: var(--soft);
+}
+
+.empty-state span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.empty-table-row {
+  cursor: default;
+}
+
+.empty-table-row:hover {
+  background: transparent;
+}
+
+.empty-table-row td {
+  padding: 26px 10px;
+  color: var(--muted);
+  text-align: center;
+  white-space: normal;
+}
+
 input,
 select {
   width: 100%;
@@ -682,6 +745,24 @@ input[type="range"] {
 .detail-panel {
   display: grid;
   gap: 16px;
+}
+
+.empty-detail {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 126px;
+  color: var(--muted);
+}
+
+.empty-detail h2 {
+  margin-bottom: 5px;
+  color: var(--soft);
+  font-size: 1.05rem;
+}
+
+.empty-detail p {
+  line-height: 1.45;
 }
 
 .detail-header h2 {

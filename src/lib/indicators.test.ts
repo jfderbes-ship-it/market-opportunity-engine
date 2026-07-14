@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateRSI, detectBearishDivergence, detectBullishDivergence } from "./indicators";
+import { calculateRSI, calculateVWAP, detectBearishDivergence, detectBullishDivergence } from "./indicators";
 import type { IndicatorPoint } from "../types";
 
 describe("indicator calculations", () => {
@@ -32,6 +32,17 @@ describe("indicator calculations", () => {
     const result = detectBearishDivergence(points);
 
     expect(result.type).toBe("Bearish");
+  });
+
+  it("resets VWAP when a new New York market session begins", () => {
+    const vwap = calculateVWAP([
+      { time: "2026-07-13T19:55:00Z", open: 100, high: 101, low: 99, close: 100, volume: 100 },
+      { time: "2026-07-13T19:59:00Z", open: 102, high: 103, low: 101, close: 102, volume: 100 },
+      { time: "2026-07-14T13:30:00Z", open: 110, high: 111, low: 109, close: 110, volume: 100 }
+    ]);
+
+    expect(vwap[1]).toBeCloseTo(101);
+    expect(vwap[2]).toBeCloseTo(110);
   });
 });
 

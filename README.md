@@ -12,21 +12,43 @@ This app is intentionally a research and education tool. It does not execute tra
 - Bullish and bearish divergence detection over recent swing points
 - Opportunity score from 0 to 100
 - Ranked scanner table, top opportunity cards, alert feed, market context panel, filters, and ticker detail view
+- Truthful empty states: filters never substitute non-matching rows
+- Scan coverage, latest-candle, unavailable-symbol, and metadata-status display
+- Session-aware VWAP calculation
 
 ## Data Plan
 
 The first build uses mock data by default so the strategy and interface can be tested without a market data subscription.
 
-The code is structured around a provider interface so public or free-tier market data can be tested without changing the scanner engine. Free market data sources are usually delayed, rate-limited, symbol-limited, or restricted by terms of use.
+The code is structured around a server-side provider interface so free, delayed, and paid market-data sources can be added without changing the browser application. Free market data sources are usually delayed, rate-limited, symbol-limited, or restricted by terms of use.
 
 Current provider paths:
 
 - Mock Market Stream: default deterministic data for development.
-- Yahoo Chart: no-key local prototype feed through the Vite dev proxy. This uses Yahoo Finance chart data but is not an official supported Yahoo API contract.
-- Finnhub Candles: set `VITE_FINNHUB_API_KEY` in `.env.local`.
-- Alpha Vantage: set `VITE_ALPHA_VANTAGE_API_KEY` in `.env.local`. Intraday delayed/realtime access depends on Alpha Vantage entitlement.
+- Alpaca Delayed SIP: the initial real-data path for the built-in starter watchlist. It uses full-market US stock and ETF bars delayed by 15 minutes, which is more appropriate for volume-sensitive research than a partial real-time feed.
 
-Important: Vite `VITE_*` values are exposed to the browser. That is acceptable for local prototype testing, but production provider calls should move behind a backend proxy. The Yahoo Chart path also depends on the local Vite proxy in development; production should replace this with a backend endpoint and a reviewed data-provider agreement.
+The real-data route is currently a local Vite middleware under `server/marketApi.ts`. It keeps provider credentials in the server process. It is deliberately a personal local-development setup, not a deployed service. A later deployment should host that module in a normal server runtime without moving any credentials into the browser.
+
+### Enable Free Delayed Market Data
+
+1. Create an Alpaca account and a paper-trading API key. No brokerage funding or trade permissions are needed for this research tool.
+2. Create `.env.local` beside `package.json` using `.env.example` as the shape:
+
+```bash
+ALPACA_API_KEY=your_key_id
+ALPACA_API_SECRET=your_secret_key
+```
+
+3. Restart `npm run dev`, choose **Alpaca Delayed SIP** in Data Feed, and click **Search Again**.
+
+The key and secret must never use a `VITE_` prefix and should never be committed to GitHub. When the provider is unavailable, the app stays in the last successful state and displays the error instead of fabricating results.
+
+### Current Data Limits
+
+- The real-data scan is a small built-in starter watchlist, not a whole-market scanner.
+- Live average daily volume is calculated from recent delayed daily bars.
+- Earnings dates, float, and bid-ask spread are intentionally not represented as live facts until a verified source is connected.
+- Relative volume is currently a local 20-candle comparison. Historical time-of-day relative volume is the next indicator-quality improvement.
 
 ## Commands
 

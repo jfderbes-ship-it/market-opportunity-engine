@@ -27,7 +27,15 @@ export type VwapStatus =
 
 export type Timeframe = "1m" | "5m" | "15m" | "1h" | "1d";
 
-export type ProviderId = "mock" | "yahoo" | "finnhub" | "alpha-vantage";
+export type ProviderId = "mock" | "alpaca-delayed-sip";
+
+export interface ScanCoverage {
+  requestedSymbols: number;
+  completedSymbols: number;
+  unavailableSymbols: string[];
+  latestCandleAt: string | null;
+  metadataStatus: "simulated" | "reference" | "partial-live" | "live";
+}
 
 export interface FeedStatus {
   providerId: ProviderId;
@@ -37,6 +45,7 @@ export interface FeedStatus {
   configured: boolean;
   message: string;
   sourceUrl?: string;
+  coverage: ScanCoverage;
 }
 
 export interface Candle {
