@@ -3,6 +3,7 @@ import {
   Activity,
   AlertTriangle,
   Bell,
+  Bookmark,
   ChartCandlestick,
   CheckCircle2,
   Clock3,
@@ -10,15 +11,19 @@ import {
   Filter,
   HelpCircle,
   Info,
+  Plus,
   RefreshCw,
+  RotateCcw,
   ShieldCheck,
   SlidersHorizontal,
   TrendingDown,
   TrendingUp,
+  X,
   Zap
 } from "lucide-react";
 import { getMarketDataProvider, marketDataProviders, publicDataIntegrationNotes } from "./lib/marketProviders";
 import { formatCompact, formatCurrency, formatMarketTimestamp, formatNumber, formatPercent } from "./lib/format";
+import { loadPersonalWatchlist, normalizeSymbols, savePersonalWatchlist, TRIAL_SWING_WATCHLIST, WATCHLIST_LIMIT } from "./lib/watchlist";
 import type {
   AlertEvent,
   FeedStatus,
@@ -37,8 +42,8 @@ const defaultFilters: ScannerFilters = {
   side: "all",
   minRelativeVolume: 0,
   minAverageVolume: 0,
-  priceMin: 0,
-  priceMax: 1000,
+  priceMin: 4,
+  priceMax: 12,
   excludeEarningsDays: 0,
   hideLiquidityWarnings: false,
   timeframe: "5m"
@@ -67,6 +72,8 @@ function App() {
   const [draftFilters, setDraftFilters] = useState<ScannerFilters>(defaultFilters);
   const [appliedFilters, setAppliedFilters] = useState<ScannerFilters>(defaultFilters);
   const [providerId, setProviderId] = useState<ProviderId>("mock");
+  const [draftWatchlist, setDraftWatchlist] = useState<string[]>(loadPersonalWatchlist);
+  const [appliedWatchlist, setAppliedWatchlist] = useState<string[]>(loadPersonalWatchlist);
   const [selectedSymbol, setSelectedSymbol] = useState("PLTR");
   const [lastRefresh, setLastRefresh] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
@@ -74,10 +81,16 @@ function App() {
   const [searchNonce, setSearchNonce] = useState(0);
   const provider = useMemo(() => getMarketDataProvider(providerId), [providerId]);
   const filtersDirty = useMemo(() => !filtersEqual(draftFilters, appliedFilters), [draftFilters, appliedFilters]);
+  const watchlistDirty = useMemo(() => !symbolsEqual(draftWatchlist, appliedWatchlist), [draftWatchlist, appliedWatchlist]);
   const runScanner = () => {
     setAppliedFilters(draftFilters);
+    setAppliedWatchlist(draftWatchlist);
     setSearchNonce((value) => value + 1);
   };
+
+  useEffect(() => {
+    savePersonalWatchlist(draftWatchlist);
+  }, [draftWatchlist]);
 
   useEffect(() => {
     let active = true;
@@ -85,7 +98,12 @@ function App() {
     setProviderError(null);
 
     provider
-      .getSnapshot(appliedFilters.timeframe)
+      .getSnapshot({
+        timeframe: appliedFilters.timeframe,
+        symbols: appliedWatchlist,
+        priceMin: appliedFilters.priceMin,
+        priceMax: appliedFilters.priceMax
+      })
       .then((nextSnapshot) => {
         if (!active) {
           return;
@@ -114,7 +132,7 @@ function App() {
     return () => {
       active = false;
     };
-  }, [appliedFilters.timeframe, provider, searchNonce]);
+  }, [appliedFilters.priceMax, appliedFilters.priceMin, appliedFilters.timeframe, appliedWatchlist, provider, searchNonce]);
 
   const filteredOpportunities = useMemo(() => {
     if (!snapshot) {
@@ -198,6 +216,14 @@ function App() {
             error={providerError}
             onChange={setProviderId}
           />
+          <WatchlistPanel
+            symbols={draftWatchlist}
+            isDirty={watchlistDirty}
+            isLoading={isLoading}
+            providerId={providerId}
+            onChange={setDraftWatchlist}
+            onApply={runScanner}
+          />
           <FiltersPanel
             filters={draftFilters}
             appliedFilters={appliedFilters}
@@ -273,6 +299,10 @@ function ProviderPanel({
           <strong>{feedStatus.coverage.completedSymbols} of {feedStatus.coverage.requestedSymbols} watchlist symbols scanned</strong>
         </div>
         <div>
+          <span>Price eligible</span>
+          <strong>{feedStatus.coverage.priceEligibleSymbols} within active price range</strong>
+        </div>
+        <div>
           <span>Newest candle</span>
           <strong>{feedStatus.mode === "mock" ? "Simulated" : formatMarketTimestamp(feedStatus.coverage.latestCandleAt)}</strong>
         </div>
@@ -298,6 +328,101 @@ function ProviderPanel({
           <span>{error}</span>
         </div>
       )}
+    </section>
+  );
+}
+
+function WatchlistPanel({
+  symbols,
+  isDirty,
+  isLoading,
+  providerId,
+  onChange,
+  onApply
+}: {
+  symbols: string[];
+  isDirty: boolean;
+  isLoading: boolean;
+  providerId: ProviderId;
+  onChange: (symbols: string[]) => void;
+  onApply: () => void;
+}) {
+  const [entry, setEntry] = useState("");
+  const [entryError, setEntryError] = useState<string | null>(null);
+  const addSymbols = () => {
+    const additions = normalizeSymbols(entry);
+    const nextSymbols = normalizeSymbols([...symbols, ...additions]);
+    if (additions.length === 0) {
+      setEntryError("Enter valid ticker symbols separated by commas.");
+      return;
+    }
+    if (nextSymbols.length === symbols.length) {
+      setEntryError(symbols.length >= WATCHLIST_LIMIT ? "The personal watchlist is limited to 50 symbols." : "Those symbols are already selected.");
+      return;
+    }
+
+    onChange(nextSymbols);
+    setEntry("");
+    setEntryError(nextSymbols.length >= WATCHLIST_LIMIT ? "Trial limit reached: remove a symbol before adding another." : null);
+  };
+  const removeSymbol = (symbol: string) => {
+    onChange(symbols.filter((item) => item !== symbol));
+    setEntryError(null);
+  };
+  const restoreTrialWatchlist = () => {
+    onChange([...TRIAL_SWING_WATCHLIST]);
+    setEntryError(null);
+  };
+
+  return (
+    <section className="panel watchlist-panel">
+      <PanelHeading icon={<Bookmark size={18} />} title="Personal Watchlist" detail={`${symbols.length} of ${WATCHLIST_LIMIT} selected`} />
+      <p>
+        Saved in this browser. The trial symbols are research candidates, not a claim that they currently meet the active price or liquidity filters.
+      </p>
+      <label>
+        <FieldLabel label="Add symbols" help="Add one or more exchange ticker symbols separated by commas. Personal selections persist until you remove them." />
+        <div className="watchlist-entry">
+          <input
+            value={entry}
+            onChange={(event) => setEntry(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                addSymbols();
+              }
+            }}
+            placeholder="Example: ACHR, JOBY"
+            aria-describedby={entryError ? "watchlist-entry-error" : undefined}
+          />
+          <button className="secondary-action icon-text-action" type="button" onClick={addSymbols} disabled={isLoading}>
+            <Plus size={16} />
+            <span>Add</span>
+          </button>
+        </div>
+      </label>
+      {entryError && <div className="watchlist-error" id="watchlist-entry-error">{entryError}</div>}
+      <div className="symbol-list" aria-label="Selected personal watchlist symbols">
+        {symbols.map((symbol) => (
+          <span className="symbol-chip" key={symbol}>
+            {symbol}
+            <button type="button" aria-label={`Remove ${symbol} from personal watchlist`} title={`Remove ${symbol}`} onClick={() => removeSymbol(symbol)} disabled={isLoading}>
+              <X size={13} />
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="watchlist-actions">
+        <button className="secondary-action" type="button" onClick={restoreTrialWatchlist} disabled={isLoading}>
+          <RotateCcw size={15} />
+          <span>Restore Trial 50</span>
+        </button>
+        <button className="primary-action" type="button" onClick={onApply} disabled={isLoading || symbols.length === 0}>
+          <RefreshCw size={16} />
+          <span>{isLoading ? "Searching..." : isDirty ? "Use Watchlist" : "Search Watchlist"}</span>
+        </button>
+      </div>
+      <small>{providerId === "mock" ? "Mock mode keeps its fixed demonstration universe. Public providers use the selected list." : "Price eligibility is checked before daily-volume analysis for public providers."}</small>
     </section>
   );
 }
@@ -951,6 +1076,10 @@ function filtersEqual(left: ScannerFilters, right: ScannerFilters): boolean {
     left.hideLiquidityWarnings === right.hideLiquidityWarnings &&
     left.timeframe === right.timeframe
   );
+}
+
+function symbolsEqual(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((symbol, index) => symbol === right[index]);
 }
 
 export default App;

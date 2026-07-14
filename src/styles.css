@@ -539,7 +539,8 @@ th .tooltip-bubble::after {
   gap: 11px;
 }
 
-.provider-panel p {
+.provider-panel p,
+.watchlist-panel p {
   color: var(--muted);
   font-size: 0.88rem;
   line-height: 1.45;
@@ -577,6 +578,89 @@ th .tooltip-bubble::after {
   border-color: rgba(242, 189, 75, 0.35);
   color: #f1d28b;
   background: rgba(242, 189, 75, 0.08);
+}
+
+.watchlist-panel {
+  display: grid;
+  gap: 11px;
+}
+
+.watchlist-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.icon-text-action {
+  min-width: 70px;
+}
+
+.watchlist-error {
+  padding: 8px 9px;
+  border: 1px solid rgba(242, 189, 75, 0.35);
+  border-radius: 7px;
+  background: rgba(242, 189, 75, 0.08);
+  color: #f1d28b;
+  font-size: 0.8rem;
+}
+
+.symbol-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 176px;
+  overflow: auto;
+  padding: 2px;
+}
+
+.symbol-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 4px 5px 4px 8px;
+  border: 1px solid rgba(97, 179, 255, 0.28);
+  border-radius: 7px;
+  background: rgba(97, 179, 255, 0.08);
+  color: #d4e8fb;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.symbol-chip button {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--soft);
+  cursor: pointer;
+}
+
+.symbol-chip button:hover:not(:disabled),
+.symbol-chip button:focus-visible {
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+}
+
+.symbol-chip button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.watchlist-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.watchlist-panel small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .scan-coverage {
@@ -1046,6 +1130,10 @@ svg {
   }
 
   .filter-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .watchlist-actions {
     grid-template-columns: 1fr;
   }
 }

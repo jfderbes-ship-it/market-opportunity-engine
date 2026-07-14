@@ -22,10 +22,11 @@ The first strategy remains focused on Bollinger Band + RSI setups:
 - The initial real-data scope is a built-in personal watchlist. It is not presented as a complete-market scan.
 - Provider credentials stay server-side. Future paid providers should implement the same provider contract rather than adding browser-side API calls.
 - A clearly labeled Public Yahoo Chart experimental adapter is permitted for personal learning and no-key testing. It must remain server-side, display timing as variable, and never be described as official or consolidated real-time data.
+- The public adapter must be respectful: low concurrency, short-lived caching, visible coverage/errors, and no identity rotation, proxy evasion, or scraping workarounds.
 
 Mock data stays as the default because it makes development deterministic and avoids API limits while the interface and scoring logic are still changing.
 
-External data support is provider-based. The active adapters are Public Yahoo Chart for explicitly experimental no-key testing and Alpaca Delayed SIP for a more dependable opt-in delayed path. Future providers should be added server-side through the same normalized provider contract.
+External data support is provider-based. The active adapters are Public Yahoo Chart for explicitly experimental no-key testing and Alpaca Delayed SIP for a more dependable opt-in delayed path. Future providers should be added server-side through the same normalized provider contract. Google Finance is useful through its documented Google Sheets function, but it is not a suitable replacement source for this scanner's server-side candle API.
 
 ## UX Choices
 

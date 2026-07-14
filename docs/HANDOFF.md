@@ -18,6 +18,7 @@ Read this file first when resuming work.
 - Clear hover/focus explanations for controls and financial terms.
 - Deterministic Mock Market Stream for repeatable learning, UI work, and tests.
 - Public Yahoo Chart (Experimental) no-key, server-side data path for personal near-real-time experimentation.
+- A saved, browser-local 50-symbol trial watchlist with explicit add/remove controls. Public providers check price eligibility before daily-volume analysis.
 - Optional Alpaca Delayed SIP server-side provider, kept unconfigured until local paper API credentials are intentionally added.
 - Data coverage, unavailable-symbol, metadata, freshness, and newest-candle status in the interface.
 - Mock rows and events explicitly show `Simulated`; they never present fabricated timestamps as live market updates.
@@ -26,10 +27,11 @@ Read this file first when resuming work.
 
 1. Mock data is for learning and repeatable development only.
 2. Public Yahoo Chart is unofficial and variable. Check the displayed newest-candle time every scan; disregard stale or inconsistent scans.
-3. Alpaca Delayed SIP is the preferred next verified data route, but it remains 15 minutes delayed and needs locally stored credentials.
-4. The current scan covers a small starter watchlist, not the entire US market.
-5. Earnings dates, live float, and bid-ask spread are unavailable until a verified provider is connected. Do not invent substitute values or imply otherwise.
-6. Keep credentials out of Git and never use `VITE_` prefixes for them; Vite exposes those values to the browser.
+3. Respect public-source limits: use the built-in low concurrency and short-lived cache, do not attempt to hide requests or bypass a source's restrictions.
+4. Alpaca Delayed SIP is the preferred next verified data route, but it remains 15 minutes delayed and needs locally stored credentials.
+5. The current scan covers a saved personal watchlist, not the entire US market.
+6. Earnings dates, live float, and bid-ask spread are unavailable until a verified provider is connected. Do not invent substitute values or imply otherwise.
+7. Keep credentials out of Git and never use `VITE_` prefixes for them; Vite exposes those values to the browser.
 
 ## Architecture Map
 

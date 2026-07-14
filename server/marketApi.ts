@@ -1,5 +1,6 @@
 import { calculateRSI } from "../src/lib/indicators";
 import { getScannerUniverse } from "../src/lib/mockData";
+import { normalizeSymbols } from "../src/lib/watchlist";
 import { evaluateTicker } from "../src/lib/scoring";
 import type { Candle, MarketContext, MarketSnapshot, ProviderId, TickerMeta, Timeframe } from "../src/types";
 
@@ -25,6 +26,7 @@ interface ServerProvider {
 
 const supportedTimeframes = new Set<Timeframe>(["1m", "5m", "15m", "1h", "1d"]);
 const contextSymbols = new Set(["SPY", "QQQ", "IWM"]);
+const barCache = new Map<string, { expiresAt: number; candles: Candle[] }>();
 
 const providers: Record<ServerProviderId, ServerProvider> = {
   "alpaca-delayed-sip": {
@@ -77,6 +79,9 @@ export function createMarketApiHandler(env: Record<string, string>) {
 
     const timeframe = url.searchParams.get("timeframe") as Timeframe;
     const providerId = url.searchParams.get("provider") as ServerProviderId;
+    const symbols = normalizeSymbols(url.searchParams.get("symbols") ?? "");
+    const priceMin = Number(url.searchParams.get("priceMin"));
+    const priceMax = Number(url.searchParams.get("priceMax"));
     if (!supportedTimeframes.has(timeframe)) {
       sendJson(response, 400, { error: "A supported timeframe is required." });
       return;
@@ -88,13 +93,18 @@ export function createMarketApiHandler(env: Record<string, string>) {
       return;
     }
 
+    if (symbols.length === 0 || !Number.isFinite(priceMin) || !Number.isFinite(priceMax) || priceMin < 0 || priceMax < priceMin) {
+      sendJson(response, 400, { error: "A non-empty watchlist and valid price range are required." });
+      return;
+    }
+
     if (!provider.isConfigured(env)) {
       sendJson(response, 503, { error: provider.configurationError });
       return;
     }
 
     try {
-      sendJson(response, 200, await buildProviderSnapshot(provider, timeframe, env));
+      sendJson(response, 200, await buildProviderSnapshot(provider, timeframe, symbols, priceMin, priceMax, env));
     } catch (error) {
       const message = error instanceof Error ? error.message : `${provider.label} scan failed.`;
       sendJson(response, 502, { error: message });
@@ -105,29 +115,31 @@ export function createMarketApiHandler(env: Record<string, string>) {
 async function buildProviderSnapshot(
   provider: ServerProvider,
   timeframe: Timeframe,
+  symbols: string[],
+  priceMin: number,
+  priceMax: number,
   env: Record<string, string>
 ): Promise<MarketSnapshot> {
-  const watchlist = getScannerUniverse().filter((meta) => !contextSymbols.has(meta.symbol));
+  const referenceMetadata = new Map(getScannerUniverse().map((meta) => [meta.symbol, meta]));
+  const watchlist = symbols
+    .filter((symbol) => !contextSymbols.has(symbol))
+    .map((symbol) => referenceMetadata.get(symbol) ?? createPersonalTickerMeta(symbol));
   const context = await buildProviderContext(provider, timeframe, env);
-  const watchlistResults = await allSettledWithConcurrency(watchlist, 3, async (meta) => {
-    const [candles, dailyCandles] = await Promise.all([
-      provider.fetchBars(meta.symbol, timeframe, env),
-      provider.fetchBars(meta.symbol, "1d", env)
-    ]);
+  const intradayResults = await allSettledWithConcurrency(watchlist, 3, (meta) => fetchCachedBars(provider, meta.symbol, timeframe, env));
+  const unavailableSymbols = intradayResults.flatMap((result, index) => result.status === "rejected" ? [watchlist[index].symbol] : []);
+  const priceEligible = intradayResults.flatMap((result, index) => {
+    const latest = result.status === "fulfilled" ? result.value.at(-1) : null;
+    return latest && latest.close >= priceMin && latest.close <= priceMax ? [{ meta: watchlist[index], candles: result.value }] : [];
+  });
+  const evaluatedResults = await allSettledWithConcurrency(priceEligible, 3, async ({ meta, candles }) => {
+    const dailyCandles = await fetchCachedBars(provider, meta.symbol, "1d", env);
     return evaluateTicker(withLiveMetadata(meta, dailyCandles), candles, context, timeframe);
   });
-
-  const unavailableSymbols = watchlistResults.flatMap((result, index) =>
-    result.status === "rejected" ? [watchlist[index].symbol] : []
-  );
-  const opportunities = watchlistResults
+  unavailableSymbols.push(...evaluatedResults.flatMap((result, index) => result.status === "rejected" ? [priceEligible[index].meta.symbol] : []));
+  const opportunities = evaluatedResults
     .flatMap((result) => (result.status === "fulfilled" ? [result.value] : []))
     .sort((left, right) => right.score - left.score)
     .map((opportunity, index) => ({ ...opportunity, rank: index + 1 }));
-
-  if (opportunities.length === 0) {
-    throw new Error(`${provider.label} returned no usable data for the starter watchlist.`);
-  }
 
   const latestCandleAt = opportunities.map((opportunity) => opportunity.lastUpdated).sort().at(-1) ?? null;
 
@@ -144,7 +156,8 @@ async function buildProviderSnapshot(
       message: provider.message,
       sourceUrl: provider.sourceUrl,
       coverage: {
-        requestedSymbols: watchlist.length,
+        requestedSymbols: symbols.length,
+        priceEligibleSymbols: priceEligible.length,
         completedSymbols: opportunities.length,
         unavailableSymbols,
         latestCandleAt,
@@ -154,11 +167,24 @@ async function buildProviderSnapshot(
   };
 }
 
+function createPersonalTickerMeta(symbol: string): TickerMeta {
+  return {
+    symbol,
+    companyName: symbol,
+    sector: "Personal watchlist",
+    marketCap: 0,
+    avgVolume: 0,
+    spreadBps: 0,
+    floatShares: 0,
+    earningsInDays: null
+  };
+}
+
 async function buildProviderContext(provider: ServerProvider, timeframe: Timeframe, env: Record<string, string>): Promise<MarketContext[]> {
   const symbols = ["SPY", "QQQ", "IWM"];
   const labels: Record<string, string> = { SPY: "Large-cap", QQQ: "Growth", IWM: "Small-cap" };
   const results = await allSettledWithConcurrency(symbols, 3, async (symbol) => {
-    const candles = await provider.fetchBars(symbol, timeframe, env);
+    const candles = await fetchCachedBars(provider, symbol, timeframe, env);
     const first = candles[0];
     const latest = candles.at(-1);
     if (!first || !latest) {
@@ -177,6 +203,36 @@ async function buildProviderContext(provider: ServerProvider, timeframe: Timefra
   });
 
   return results.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
+}
+
+async function fetchCachedBars(
+  provider: ServerProvider,
+  symbol: string,
+  timeframe: Timeframe,
+  env: Record<string, string>
+): Promise<Candle[]> {
+  const cacheKey = `${provider.id}:${symbol}:${timeframe}`;
+  const now = Date.now();
+  const cached = barCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.candles;
+  }
+
+  const candles = await provider.fetchBars(symbol, timeframe, env);
+  barCache.set(cacheKey, { candles, expiresAt: now + cacheDurationMilliseconds(timeframe) });
+  return candles;
+}
+
+function cacheDurationMilliseconds(timeframe: Timeframe): number {
+  if (timeframe === "1d") {
+    return 5 * 60 * 1000;
+  }
+
+  if (timeframe === "1m") {
+    return 30 * 1000;
+  }
+
+  return 90 * 1000;
 }
 
 async function fetchAlpacaBars(symbol: string, timeframe: Timeframe, env: Record<string, string>): Promise<Candle[]> {

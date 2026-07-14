@@ -207,7 +207,7 @@ export const MOCK_TICKER_UNIVERSE: MockTickerConfig[] = [
   }
 ];
 
-export function buildMockSnapshot(timeframe: Timeframe = "5m"): MarketSnapshot {
+export function buildMockSnapshot(timeframe: Timeframe = "5m", priceMin = 0, priceMax = Number.POSITIVE_INFINITY): MarketSnapshot {
   const context = buildMarketContext();
   const opportunities = MOCK_TICKER_UNIVERSE.map((ticker) => {
     const candles = generateCandles(ticker, timeframe);
@@ -232,6 +232,7 @@ export function buildMockSnapshot(timeframe: Timeframe = "5m"): MarketSnapshot {
       message: "Deterministic simulated candles for strategy, UI, and scoring development.",
       coverage: {
         requestedSymbols: opportunities.length,
+        priceEligibleSymbols: opportunities.filter((opportunity) => opportunity.currentPrice >= priceMin && opportunity.currentPrice <= priceMax).length,
         completedSymbols: opportunities.length,
         unavailableSymbols: [],
         latestCandleAt: opportunities[0]?.lastUpdated ?? null,

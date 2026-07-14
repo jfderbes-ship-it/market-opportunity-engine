@@ -65,6 +65,12 @@
 - Replaced outdated repository/bootstrap instructions with a current restart handoff, data-trust rules, architecture map, verification checklist, and sequenced next-work list.
 - Confirmed `main` is pushed to `jfderbes-ship-it/market-opportunity-engine` through commit `eaec4f2`.
 
+### July 14, 2026: Personal Watchlist And Respectful Public Data Use
+
+- Added a locally saved 50-symbol trial watchlist with add/remove controls and a clear fixed-demo distinction for Mock mode.
+- Public scans now perform price eligibility before daily-volume analysis and report requested, price-eligible, completed, and unavailable counts.
+- Added short-lived server-side bar caching to avoid unnecessary repeat public-provider requests; no request-hiding or source-control bypass techniques are used.
+
 ### Verification
 
 - `npm test` passed.

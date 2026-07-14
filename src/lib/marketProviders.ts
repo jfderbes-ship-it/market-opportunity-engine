@@ -1,5 +1,5 @@
 import { buildMockSnapshot } from "./mockData";
-import type { MarketSnapshot, ProviderId, Timeframe } from "../types";
+import type { MarketScanRequest, MarketSnapshot, ProviderId } from "../types";
 
 export interface MarketDataProvider {
   id: ProviderId;
@@ -8,7 +8,7 @@ export interface MarketDataProvider {
   freshness: string;
   configured: boolean;
   sourceUrl?: string;
-  getSnapshot(timeframe: Timeframe): Promise<MarketSnapshot>;
+  getSnapshot(request: MarketScanRequest): Promise<MarketSnapshot>;
 }
 
 export class MockMarketDataProvider implements MarketDataProvider {
@@ -18,8 +18,8 @@ export class MockMarketDataProvider implements MarketDataProvider {
   freshness = "Simulated";
   configured = true;
 
-  async getSnapshot(timeframe: Timeframe): Promise<MarketSnapshot> {
-    return buildMockSnapshot(timeframe);
+  async getSnapshot(request: MarketScanRequest): Promise<MarketSnapshot> {
+    return buildMockSnapshot(request.timeframe, request.priceMin, request.priceMax);
   }
 }
 
@@ -31,8 +31,8 @@ export class AlpacaDelayedSipMarketDataProvider implements MarketDataProvider {
   configured = false;
   sourceUrl = "https://docs.alpaca.markets/us/docs/about-market-data-api";
 
-  async getSnapshot(timeframe: Timeframe): Promise<MarketSnapshot> {
-    return fetchServerSnapshot(this.id, timeframe);
+  async getSnapshot(request: MarketScanRequest): Promise<MarketSnapshot> {
+    return fetchServerSnapshot(this.id, request);
   }
 }
 
@@ -44,19 +44,25 @@ export class PublicYahooMarketDataProvider implements MarketDataProvider {
   configured = true;
   sourceUrl = "https://finance.yahoo.com/";
 
-  async getSnapshot(timeframe: Timeframe): Promise<MarketSnapshot> {
-    return fetchServerSnapshot(this.id, timeframe);
+  async getSnapshot(request: MarketScanRequest): Promise<MarketSnapshot> {
+    return fetchServerSnapshot(this.id, request);
   }
 }
 
-async function fetchServerSnapshot(provider: ProviderId, timeframe: Timeframe): Promise<MarketSnapshot> {
-  const query = new URLSearchParams({ provider, timeframe });
-    const response = await fetch(`/api/market/snapshot?${query}`);
-    const payload = (await response.json()) as MarketSnapshot | { error?: string };
+async function fetchServerSnapshot(provider: ProviderId, request: MarketScanRequest): Promise<MarketSnapshot> {
+  const query = new URLSearchParams({
+    provider,
+    timeframe: request.timeframe,
+    symbols: request.symbols.join(","),
+    priceMin: String(request.priceMin),
+    priceMax: String(request.priceMax)
+  });
+  const response = await fetch(`/api/market/snapshot?${query}`);
+  const payload = (await response.json()) as MarketSnapshot | { error?: string };
 
-    if (!response.ok || !("opportunities" in payload)) {
-      throw new Error("error" in payload && payload.error ? payload.error : "The local market-data server could not complete the scan.");
-    }
+  if (!response.ok || !("opportunities" in payload)) {
+    throw new Error("error" in payload && payload.error ? payload.error : "The local market-data server could not complete the scan.");
+  }
   return payload;
 }
 
@@ -74,7 +80,7 @@ export const publicDataIntegrationNotes = [
   "Mock mode is kept for learning, interface work, and repeatable strategy tests.",
   "Public Yahoo Chart is a no-key experimental fallback. It is clearly labeled because timing, coverage, and availability are not guaranteed.",
   "Alpaca Delayed SIP is the first real-data path because complete delayed market coverage is more dependable for volume-based signals than partial real-time feeds.",
-  "The current live scan is a small built-in watchlist, not a claim to scan every listed security.",
+  "The current public scan uses your saved personal watchlist, capped at 50 symbols. It is not a claim to scan every listed security.",
   "Credentials stay in the local server process. Future paid providers use the same server-side provider boundary.",
   "Earnings dates and live bid-ask spreads are intentionally unavailable until a verified source is connected; the UI does not invent them."
 ];

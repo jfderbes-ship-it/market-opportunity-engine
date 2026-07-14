@@ -52,7 +52,8 @@ This option is a personal-use workaround, not a reliable market-data contract. C
 
 ### Current Data Limits
 
-- The real-data scan is a small built-in starter watchlist, not a whole-market scanner.
+- The real-data scan uses the saved personal watchlist in the browser, capped at 50 symbols. It is not a whole-market scanner.
+- The starter Trial 50 is a research list only; it is not a claim that every symbol currently meets the active price or liquidity filters.
 - Public Yahoo Chart uses a public, unofficial chart endpoint. It is rate-limited by a three-request concurrency cap and may change or stop working without notice.
 - Live average daily volume is calculated from recent delayed daily bars.
 - Earnings dates, float, and bid-ask spread are intentionally not represented as live facts until a verified source is connected.

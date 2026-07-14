@@ -31,6 +31,7 @@ export type ProviderId = "mock" | "alpaca-delayed-sip" | "yahoo-public";
 
 export interface ScanCoverage {
   requestedSymbols: number;
+  priceEligibleSymbols: number;
   completedSymbols: number;
   unavailableSymbols: string[];
   latestCandleAt: string | null;
@@ -171,4 +172,11 @@ export interface ScannerFilters {
   excludeEarningsDays: number;
   hideLiquidityWarnings: boolean;
   timeframe: Timeframe;
+}
+
+export interface MarketScanRequest {
+  timeframe: Timeframe;
+  symbols: string[];
+  priceMin: number;
+  priceMax: number;
 }
