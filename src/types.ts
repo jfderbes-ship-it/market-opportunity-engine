@@ -27,7 +27,7 @@ export type VwapStatus =
 
 export type Timeframe = "1m" | "5m" | "15m" | "1h" | "1d";
 
-export type ProviderId = "mock" | "alpaca-delayed-sip";
+export type ProviderId = "mock" | "alpaca-delayed-sip" | "yahoo-public";
 
 export interface ScanCoverage {
   requestedSymbols: number;

@@ -18,7 +18,7 @@ import {
   Zap
 } from "lucide-react";
 import { getMarketDataProvider, marketDataProviders, publicDataIntegrationNotes } from "./lib/marketProviders";
-import { formatCompact, formatCurrency, formatNumber, formatPercent } from "./lib/format";
+import { formatCompact, formatCurrency, formatMarketTimestamp, formatNumber, formatPercent } from "./lib/format";
 import type {
   AlertEvent,
   FeedStatus,
@@ -249,7 +249,7 @@ function ProviderPanel({
     <section className="panel provider-panel">
       <PanelHeading icon={<Database size={18} />} title="Data Feed" detail={isLoading ? "Loading..." : feedStatus.freshness} />
       <label>
-        <FieldLabel label="Provider" help="Mock is simulated. Alpaca uses delayed consolidated market data through the local server, so the browser never receives the API credentials." />
+        <FieldLabel label="Provider" help="Mock is simulated. Public Yahoo Chart is an experimental no-key feed with variable timing. Alpaca uses delayed consolidated market data through the local server, so the browser never receives API credentials." />
         <select value={providerId} onChange={(event) => onChange(event.target.value as ProviderId)}>
           {marketDataProviders.map((provider) => (
             <option key={provider.id} value={provider.id}>
@@ -271,7 +271,7 @@ function ProviderPanel({
         </div>
         <div>
           <span>Newest candle</span>
-          <strong>{feedStatus.coverage.latestCandleAt ?? "Not available"}</strong>
+          <strong>{formatMarketTimestamp(feedStatus.coverage.latestCandleAt)}</strong>
         </div>
         <div>
           <span>Metadata</span>
@@ -407,7 +407,7 @@ function ScannerTable({
                 <td>{formatNumber(opportunity.relativeVolume, 2)}x</td>
                 <td>{opportunity.vwapStatus}</td>
                 <td>{opportunity.liquidityWarning ?? "Clear"}</td>
-                <td>{opportunity.lastUpdated}</td>
+                <td>{formatMarketTimestamp(opportunity.lastUpdated)}</td>
               </tr>
             ))}
           </tbody>
@@ -568,7 +568,7 @@ function AlertFeed({ opportunities }: { opportunities: Opportunity[] }) {
         {feed.length === 0 && <EmptyState title="No current watchlist events" detail="The active filters did not leave any qualifying signals." />}
         {feed.map((item) => (
           <div className="feed-row" key={`${item.symbol}-${item.label}`}>
-            <span>{item.time}</span>
+            <span>{formatMarketTimestamp(item.time)}</span>
             <strong>{item.symbol}</strong>
             <SignalTag side={item.side} label={item.label} />
             <ScoreBadge score={item.score} />
@@ -831,7 +831,7 @@ function Timeline({ events }: { events: AlertEvent[] }) {
     <div className="timeline">
       {events.map((event, index) => (
         <div className={`timeline-row ${event.severity}`} key={`${event.time}-${event.label}-${index}`}>
-          <span>{event.time}</span>
+          <span>{formatMarketTimestamp(event.time)}</span>
           <p>{event.label}</p>
         </div>
       ))}

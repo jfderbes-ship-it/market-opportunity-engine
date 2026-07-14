@@ -32,20 +32,37 @@ export class AlpacaDelayedSipMarketDataProvider implements MarketDataProvider {
   sourceUrl = "https://docs.alpaca.markets/us/docs/about-market-data-api";
 
   async getSnapshot(timeframe: Timeframe): Promise<MarketSnapshot> {
-    const query = new URLSearchParams({ timeframe });
+    return fetchServerSnapshot(this.id, timeframe);
+  }
+}
+
+export class PublicYahooMarketDataProvider implements MarketDataProvider {
+  id = "yahoo-public" as const;
+  label = "Public Yahoo Chart (Experimental)";
+  description = "No-key public chart candles for personal experimentation. Timing and coverage can vary, so always check the newest candle timestamp before using a signal.";
+  freshness = "Public feed timing varies";
+  configured = true;
+  sourceUrl = "https://finance.yahoo.com/";
+
+  async getSnapshot(timeframe: Timeframe): Promise<MarketSnapshot> {
+    return fetchServerSnapshot(this.id, timeframe);
+  }
+}
+
+async function fetchServerSnapshot(provider: ProviderId, timeframe: Timeframe): Promise<MarketSnapshot> {
+  const query = new URLSearchParams({ provider, timeframe });
     const response = await fetch(`/api/market/snapshot?${query}`);
     const payload = (await response.json()) as MarketSnapshot | { error?: string };
 
     if (!response.ok || !("opportunities" in payload)) {
       throw new Error("error" in payload && payload.error ? payload.error : "The local market-data server could not complete the scan.");
     }
-
-    return payload;
-  }
+  return payload;
 }
 
 export const marketDataProviders: MarketDataProvider[] = [
   new MockMarketDataProvider(),
+  new PublicYahooMarketDataProvider(),
   new AlpacaDelayedSipMarketDataProvider()
 ];
 
@@ -55,6 +72,7 @@ export function getMarketDataProvider(id: ProviderId): MarketDataProvider {
 
 export const publicDataIntegrationNotes = [
   "Mock mode is kept for learning, interface work, and repeatable strategy tests.",
+  "Public Yahoo Chart is a no-key experimental fallback. It is clearly labeled because timing, coverage, and availability are not guaranteed.",
   "Alpaca Delayed SIP is the first real-data path because complete delayed market coverage is more dependable for volume-based signals than partial real-time feeds.",
   "The current live scan is a small built-in watchlist, not a claim to scan every listed security.",
   "Credentials stay in the local server process. Future paid providers use the same server-side provider boundary.",

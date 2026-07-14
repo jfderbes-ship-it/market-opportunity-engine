@@ -21,6 +21,7 @@ The first strategy remains focused on Bollinger Band + RSI setups:
 - Yahoo Finance scraping and browser-direct provider keys are removed from the active product path.
 - The initial real-data scope is a built-in personal watchlist. It is not presented as a complete-market scan.
 - Provider credentials stay server-side. Future paid providers should implement the same provider contract rather than adding browser-side API calls.
+- A clearly labeled Public Yahoo Chart experimental adapter is permitted for personal learning and no-key testing. It must remain server-side, display timing as variable, and never be described as official or consolidated real-time data.
 
 Mock data stays as the default because it makes development deterministic and avoids API limits while the interface and scoring logic are still changing.
 

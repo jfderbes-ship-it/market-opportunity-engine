@@ -25,6 +25,7 @@ The code is structured around a server-side provider interface so free, delayed,
 Current provider paths:
 
 - Mock Market Stream: default deterministic data for development.
+- Public Yahoo Chart (Experimental): a no-key public chart endpoint for personal, near-real-time experimentation. Its timing, coverage, and availability are variable and it is not an official Yahoo API contract.
 - Alpaca Delayed SIP: the initial real-data path for the built-in starter watchlist. It uses full-market US stock and ETF bars delayed by 15 minutes, which is more appropriate for volume-sensitive research than a partial real-time feed.
 
 The real-data route is currently a local Vite middleware under `server/marketApi.ts`. It keeps provider credentials in the server process. It is deliberately a personal local-development setup, not a deployed service. A later deployment should host that module in a normal server runtime without moving any credentials into the browser.
@@ -43,9 +44,16 @@ ALPACA_API_SECRET=your_secret_key
 
 The key and secret must never use a `VITE_` prefix and should never be committed to GitHub. When the provider is unavailable, the app stays in the last successful state and displays the error instead of fabricating results.
 
+### Use No-Key Experimental Data
+
+Choose **Public Yahoo Chart (Experimental)** in the Data Feed panel and click **Search Again**. No account or API key is required.
+
+This option is a personal-use workaround, not a reliable market-data contract. Check the displayed newest-candle timestamp on every scan. If it is stale, unavailable, or clearly inconsistent with another source, disregard that scan and return to Mock mode or use a verified provider.
+
 ### Current Data Limits
 
 - The real-data scan is a small built-in starter watchlist, not a whole-market scanner.
+- Public Yahoo Chart uses a public, unofficial chart endpoint. It is rate-limited by a three-request concurrency cap and may change or stop working without notice.
 - Live average daily volume is calculated from recent delayed daily bars.
 - Earnings dates, float, and bid-ask spread are intentionally not represented as live facts until a verified source is connected.
 - Relative volume is currently a local 20-candle comparison. Historical time-of-day relative volume is the next indicator-quality improvement.

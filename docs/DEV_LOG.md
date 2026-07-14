@@ -50,6 +50,12 @@
 - Added a session-aware VWAP reset and regression test.
 - Real data remains opt-in until local Alpaca paper API credentials are provided.
 
+### July 14, 2026: No-Key Experimental Fallback
+
+- Added Public Yahoo Chart (Experimental) through the same local server-side provider boundary.
+- Verified the endpoint returns usable five-minute candles for all 12 starter-watchlist symbols plus market context without an API key.
+- Added a three-request concurrency cap, explicit variable-timing label, and Eastern-time newest-candle display.
+
 ### Verification
 
 - `npm test` passed.
