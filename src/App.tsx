@@ -198,11 +198,6 @@ function App() {
         </div>
       </header>
 
-      <div className="research-note">
-        <Info size={14} />
-        <span>Research only. Verify data before making financial decisions.</span>
-      </div>
-
       <main className="dashboard-grid">
         <section className="left-column">
           <OpportunityCards opportunities={visibleOpportunities.slice(0, 3)} onSelect={setSelectedSymbol} selectedSymbol={selectedOpportunity?.symbol ?? null} />
@@ -251,6 +246,11 @@ function App() {
           {selectedOpportunity ? <TickerDetail opportunity={selectedOpportunity} isSimulated={isSimulated} /> : <NoSelectionPanel />}
         </section>
       </main>
+
+      <footer className="research-footer">
+        <Info size={14} />
+        <span>Research only. Verify data before making financial decisions.</span>
+      </footer>
     </div>
   );
 }
